@@ -3486,6 +3486,15 @@ func malg(stacksize int32) *g {
 // untyped arguments in newproc's argument frame. Stack copies won't
 // be able to adjust them and stack splits won't be able to copy them.
 //
+// 使用siz字节大小的参数创建一个运行函数fn的新的g。
+// 将它放入g的等待运行队列中。
+// 编译器将go语句转换为对此函数的调用。
+//
+// 此函数调用的堆栈布局很特殊：它假设在&fn之后传递给fn的参数就立即依序在栈上了。
+// 因此，它们在逻辑上是newproc的参数帧的一部分，即使它们并没有出现在newproc的函数签名中(...)
+//
+// 这里必须要使用nosplit，因为此堆栈布局意味着newproc的参数帧中有无类型的参数。堆栈副本将无法调整它们，
+// 并且堆栈splits将无法复制它们。
 //go:nosplit
 func newproc(siz int32, fn *funcval) {
 	argp := add(unsafe.Pointer(&fn), sys.PtrSize)
