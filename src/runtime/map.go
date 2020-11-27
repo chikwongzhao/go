@@ -53,6 +53,40 @@ package runtime
 // Keep in mind this data is for maximally loaded tables, i.e. just
 // before the table grows. Typical tables will be somewhat less loaded.
 
+// 此文件包含Go的map类型的实现。
+//
+// map只是个哈希表。数据被安放在一个桶数组(array of buckets)中。每个桶包含最多8个键值对。
+// 哈希的低位用于选择桶。Each bucket contains a few high-order bits of each hash to distinguish the entries within a single bucket.
+//
+// 如果有8个以上的键散列到桶中，那么我们会链接其他的桶。
+//
+// 当哈希表增长时，我们将分配一个新的桶数组，其大小是原来的两倍。将桶以增量方式从旧桶数组复制到新的桶数组。
+//
+// map迭代器遍历桶数组并按遍历顺序(桶编号，然后是溢出链顺序，然后是桶索引)返回其中的键。
+// 为了保证迭代的语义，我们绝不会在键所在的桶中移动键(如果这么做了，该键可能会返回0次或2次)。
+// 当表增长时，迭代器将继续在旧表中进行迭代，并且必须检查新表是否要将正在迭代的桶移动到新表中。
+
+// 选择负载因子: 太大的话会有很多桶溢出, 太小的话会浪费很多空间.
+// 我编写了一个简单的程序来检查一些不同负载的统计信息：（64位，8字节的键和值）
+//     loadFactor   %overflow  bytes/entry     hitprobe    missprobe
+//        4.00         2.13        20.77         3.00         4.00
+//        4.50         4.05        17.30         3.25         4.50
+//        5.00         6.85        14.77         3.50         5.00
+//        5.50        10.55        12.94         3.75         5.50
+//        6.00        15.27        11.67         4.00         6.00
+//        6.50        20.90        10.79         4.25         6.50
+//        7.00        27.14        10.15         4.50         7.00
+//        7.50        34.03         9.73         4.75         7.50
+//        8.00        41.10         9.40         5.00         8.00
+//
+// loadFactor  = 负载因子
+// %overflow   = 有桶发生溢出的百分比
+// bytes/entry = 每个键值对使用的字节开销
+// hitprobe    = 查找当前键(key)时要检索的条目数
+// missprobe   = 查找缺失键(key)时要检索的条目数
+//
+// 请注意u，此数据用于最大化的加载表，比如：仅仅是表增长之前。普通的表将很少加载。
+
 import (
 	"runtime/internal/atomic"
 	"runtime/internal/math"
